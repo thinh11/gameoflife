@@ -34,9 +34,6 @@ func main() {
 	
 	
 	
-	
-	
-	
 	view.Show()
 	
 	widgets.QApplication_Exec()

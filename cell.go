@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	Cell__Black CellColor = gui.NewQColor3(0,0,0,255)
-	Cell__White CellColor = gui.NewQColor3(255,255,255,255)
-	Cell__Gray CellColor = gui.NewQColor3(128,128,128,255)
+	Cell__Black *gui.QColor = gui.NewQColor3(0,0,0,255)
+	Cell__White *gui.QColor = gui.NewQColor3(255,255,255,255)
+	Cell__Gray *gui.QColor = gui.NewQColor3(128,128,128,255)
 )
 
 
@@ -62,4 +62,8 @@ func Paint(cell *Cell) func(*gui.QPainter, *widgets.QStyleOptionGraphicsItem, *w
 
 func MousePressEvent(cell *Cell) func(*widgets.QGraphicsSceneMouseEvent) {
 	return func (event *widgets.QGraphicsSceneMouseEvent) { cell.Change() }
+}
+
+func Advance(cell *Cell, live *bool) func() {
+	return func() { cell.Live = *live }
 }
