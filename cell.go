@@ -6,44 +6,64 @@ import (
 	"github.com/therecipe/qt/core"
 )
 
+
 var (
 	Cell__Black *gui.QColor = gui.NewQColor3(0,0,0,255)
 	Cell__White *gui.QColor = gui.NewQColor3(255,255,255,255)
 	Cell__Gray *gui.QColor = gui.NewQColor3(128,128,128,255)
 )
 
+var (
+	CellWidth int = 10
+	CellHeight int = 10
+)
 
 type Cell struct {
 	*widgets.QGraphicsItem
-	Live bool
+	Live *bool
 }
 
-func NewCell() *Cell {
-	cell := Cell{widgets.NewQGraphicsItem(nil), false}
-	cell.ConnectBoundingRect(BoundingRect(&cell))
-	cell.ConnectShape(Shape(&cell))
-	cell.ConnectPaint(Paint(&cell))
-	cell.ConnectMousePressEvent(MousePressEvent(&cell))
-	return &cell
+func NewCell(live *bool) *Cell {
+	cell := &Cell{widgets.NewQGraphicsItem(nil), live}
+	cell.ConnectBoundingRect(CellBoundingRect(cell))
+	cell.ConnectShape(CellShape(cell))
+	cell.ConnectPaint(Paint(cell))
+	cell.ConnectMousePressEvent(CellMousePressEvent(cell))
+	//cell.SetAcceptDrops(true)
+	//cell.ConnectDragEnterEvent(CellDragEnterEvent(cell))
+	//cell.ConnectMouseMoveEvent(CellMouseMoveEvent(cell))
+	//cell.SetAcceptHoverEvents(true)
+	//cell.ConnectHoverEnterEvent(CellHoverEnterEvent(cell))
+	//cell.ConnectHoverLeaveEvent(CellHoverEnterEvent(cell))
+	//cell.ConnectMouseReleaseEvent(CellMouseReleaseEvent(cell))
+	cell.ConnectAdvance(CellAdvance(cell))
+	
+	return cell
 }
+
 func (cell *Cell) Change() {
-	cell.Live = !cell.Live
+	*cell.Live = !(*cell.Live)
 	cell.Update(core.NewQRectF())
 }
 
+
 func (cell *Cell) Color() *gui.QColor {
-	if cell.Live {
+	if *cell.Live {
 		return Cell__White
 	}
 	return Cell__Black
 }
 
 
-func BoundingRect(cell *Cell) func() *core.QRectF {
-	return func() *core.QRectF { return core.NewQRectF4(-5.0, -5.0, 10.0, 10.0) }
+func CellBoundingRect(cell *Cell) func() *core.QRectF {
+	return func() *core.QRectF {
+		w := float64(CellWidth)
+		h := float64(CellHeight)
+		return core.NewQRectF4(-w/2.0, -h/2.0, w, h)
+	}
 }
 
-func Shape(cell *Cell) func() *gui.QPainterPath {
+func CellShape(cell *Cell) func() *gui.QPainterPath {
 	return func() *gui.QPainterPath{
 		path := gui.NewQPainterPath()
 		path.AddRect(cell.BoundingRect())
@@ -60,10 +80,17 @@ func Paint(cell *Cell) func(*gui.QPainter, *widgets.QStyleOptionGraphicsItem, *w
 	}
 }
 
-func MousePressEvent(cell *Cell) func(*widgets.QGraphicsSceneMouseEvent) {
-	return func (event *widgets.QGraphicsSceneMouseEvent) { cell.Change() }
+func CellMousePressEvent(cell *Cell) func(*widgets.QGraphicsSceneMouseEvent) {
+	return func (event *widgets.QGraphicsSceneMouseEvent) {
+		cell.Change()
+	}
 }
 
-func Advance(cell *Cell, live *bool) func() {
-	return func() { cell.Live = *live }
+
+func CellAdvance(cell *Cell) func(int) {
+	return func(n int) { 
+		if n > 0 {
+			cell.Update(core.NewQRectF())
+		}
+	}
 }
