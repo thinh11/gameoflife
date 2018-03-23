@@ -29,13 +29,6 @@ func NewCell(live *bool) *Cell {
 	cell.ConnectShape(CellShape(cell))
 	cell.ConnectPaint(Paint(cell))
 	cell.ConnectMousePressEvent(CellMousePressEvent(cell))
-	//cell.SetAcceptDrops(true)
-	//cell.ConnectDragEnterEvent(CellDragEnterEvent(cell))
-	//cell.ConnectMouseMoveEvent(CellMouseMoveEvent(cell))
-	//cell.SetAcceptHoverEvents(true)
-	//cell.ConnectHoverEnterEvent(CellHoverEnterEvent(cell))
-	//cell.ConnectHoverLeaveEvent(CellHoverEnterEvent(cell))
-	//cell.ConnectMouseReleaseEvent(CellMouseReleaseEvent(cell))
 	cell.ConnectAdvance(CellAdvance(cell))
 	
 	return cell

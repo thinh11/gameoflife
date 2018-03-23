@@ -10,7 +10,7 @@ func main() {
 
 	app := widgets.NewQApplication(len(os.Args), os.Args)
 	
-	window, _ := NewMainWindow(50, 50, 10, 10)
+	window, _ := NewMainWindow(200, 200, 10, 10)
 	
 	window.Show()
 	

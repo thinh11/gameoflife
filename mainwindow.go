@@ -17,9 +17,11 @@ var ReservedState [][]bool
 
 type MainWindow struct {
 	*widgets.QMainWindow
-	View *widgets.QGraphicsView
+	View *View
 	Scene *Scene
-	PauseButton *widgets.QPushButton
+	PauseButton *widgets.QToolButton
+	ZoomSlider *widgets.QSlider
+	RotateSlider *widgets.QSlider
 	GameState [][]bool
 	CurrentFile string
 	New func(bool)
@@ -27,21 +29,6 @@ type MainWindow struct {
 	Save func(bool)
 	SaveAs func(bool)
 	Exit func(bool)
-	/*
-	Copy func(bool)
-	Paste func(bool)
-	Cut func(bool)
-	Delete func(bool)
-	NewAction *widgets.QAction
-	OpenAction *widgets.QAction
-	SaveAction *widgets.QAction
-	SaveAsAction *widgets.QAction
-	ExitAction *widgets.QAction
-	CopyAction *widgets.QAction
-	PasteAction *widgets.QAction
-	CutAction *widgets.QAction
-	DeleteAction *widgets.QAction
-	*/
 }
 
 func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainWindow, error) {
@@ -53,29 +40,20 @@ func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainW
 	CellWidth = cellwidth
 	CellHeight = cellheight
 	
-	
-	view := widgets.NewQGraphicsView(nil)
+	view := NewView()
 	scene := NewScene()
-	pausebutton := widgets.NewQPushButton2("Start", nil)
-	
 	gamestate := make([][]bool, height+2, height+2)
 	ReservedState = make([][]bool, height+2, height+2)
-	
 	for i:=0; i < height+2; i++ {
 		gamestate[i] = make([]bool, width+2, width+2)
 		ReservedState[i] = make([]bool, width+2, width+2)
 	}
-	
-	
 	window := &MainWindow{widgets.NewQMainWindow(nil, core.Qt__Widget), 
-		view, scene, pausebutton, gamestate, "", nil, nil, nil, nil, nil}
+		view, scene, nil, nil, nil, gamestate, "", nil, nil, nil, nil, nil}
 	
 	view.SetScene(scene)
 	view.SetRenderHints(gui.QPainter__Antialiasing)
-	window.SetCentralWidget(view)
-	
-	pausebutton.SetCheckable(true)
-	pausebutton.ConnectClicked(PauseToggle(window))
+	//view.ConnectWheelEvent(WheelEvent(window))
 	
 	window.New = New(window)
 	window.Open = Open(window)
@@ -85,15 +63,42 @@ func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainW
 	
 	window.SetupScene()
 	window.CreateFileMenu()
-	window.CreateToolBar()
 	window.CreateStatusBar()
+	window.CreateWidgets() //also set layout
 	
-	
-	
-	window.SetWindowTitle("Game of Life")
-	//window.SetUnifiedTitleAndToolBarOnMac(true)
+	window.SetWindowTitle("[*]Untitled - Game of Life")
+	window.SetWindowModified(true)
 	
 	return window, nil
+}
+
+func (window *MainWindow) CreateWidgets() {
+	widget := widgets.NewQWidget(nil, core.Qt__Widget)
+	pausebutton := widgets.NewQToolButton(nil)
+	pausebutton.SetText("Start")
+	pausebutton.SetCheckable(true)
+	pausebutton.ConnectClicked(PauseToggle(window))
+	zoomslider := widgets.NewQSlider2(core.Qt__Vertical, nil)
+	zoomslider.SetMinimum(50)
+	zoomslider.SetMaximum(200)
+	zoomslider.SetValue(100)
+	zoomslider.ConnectValueChanged(Zoom(window))
+	rotateslider := widgets.NewQSlider2(core.Qt__Horizontal, nil)
+	rotateslider.SetMinimum(-180)
+	rotateslider.SetMaximum(180)
+	rotateslider.SetValue(0)
+	rotateslider.ConnectValueChanged(Rotate(window))
+	window.PauseButton = pausebutton
+	window.ZoomSlider = zoomslider
+	window.RotateSlider = rotateslider
+	
+	gridlayout := widgets.NewQGridLayout2()
+	gridlayout.AddWidget(pausebutton, 0, 0, 0)
+	gridlayout.AddWidget(window.View, 1, 0, 0)
+	gridlayout.AddWidget(zoomslider, 1, 1, 0)
+	gridlayout.AddWidget(rotateslider, 3, 0, 0)
+	widget.SetLayout(gridlayout)
+	window.SetCentralWidget(widget)
 }
 
 func (window *MainWindow) CreateFileMenu() {
@@ -102,12 +107,7 @@ func (window *MainWindow) CreateFileMenu() {
 	SaveAction := widgets.NewQAction2("Save", nil)
 	SaveAsAction := widgets.NewQAction2("Save as", nil)
 	ExitAction := widgets.NewQAction2("Exit", nil)
-	/*
-	CopyAction := widgets.NewQAction2("Copy", window)
-	PasteAction := widgets.NewQAction2("Paste", window)
-	CutAction := widgets.NewQAction2("Cut", window)
-	DeleteAction := widgets.NewQAction2("Delete", window)
-	*/
+
 	NewAction.ConnectTriggered(window.New)
 	OpenAction.ConnectTriggered(window.Open)
 	SaveAction.ConnectTriggered(window.Save)
@@ -149,102 +149,6 @@ func (window *MainWindow) SetupScene() {
 		}
 	}
 }
-
-
-func WindowAdvance(window *MainWindow) func() {
-	return func() {
-		if window.PauseButton.IsChecked(){
-			window.AdvanceGameState()
-			window.Scene.Advance()
-		}
-	}
-}
-
-func PauseToggle(window *MainWindow) func(bool) {
-	return func(checked bool) {
-		if checked {
-			window.PauseButton.SetText("Pause")
-		} else {
-			window.PauseButton.SetText("Start")
-		}
-	}
-}
-
-func (window *MainWindow) AdvanceGameState() {
-	M := len(window.GameState)-2
-	N := len(window.GameState[0])-2
-	b := window.GameState
-	for i:=1; i <= N; i++ {
-		for j:=1; j <= M; j++ {
-			//window.GameState[i][j] = !window.GameState[i][j]
-			ns := []bool{b[i-1][j-1], b[i-1][j], b[i-1][j+1], 
-				b[i][j-1], b[i][j+1], 
-				b[i+1][j-1], b[i+1][j], b[i+1][j+1]}	
-			live := 0
-			for _, n := range ns {
-				if n {
-					live++
-				}
-			}
-			if b[i][j] {
-				if live < 2 || live > 3 {
-					ReservedState[i][j] = false
-				} else {
-					ReservedState[i][j] = true
-				}
-			} else {
-				if live==3 {
-					ReservedState[i][j] = true
-				}
-			}
-		}
-	}
-	for i:=1; i <= N; i++ {
-		copy(b[i], ReservedState[i])
-	}
-}
-
-/*
-func GetNeighbors(b [][]bool, M int, N int, i int, j int) []bool {
-	if i==0 {
-		if j==0 {
-			return []bool{b[1][0], b[1][1], b[0][1]}
-		}
-		if j==N-1 {
-			return []bool{b[0][N-2], b[1][N-2], b[1][N-1]}
-		}
-		return []bool{b[0][j-1], b[1][j-1], b[1][j], b[1][j+1], b[0][j+1]}
-	}
-	if i==M-1 {
-		if j==0 {
-			return []bool{b[M-1][1], b[M-2][1], b[M-2][0]}
-		}
-		if j==N-1 {
-			return []bool{b[M-2][N-1], b[M-2][N-2], b[M-1][N-2]}
-		}
-		return []bool{b[M-1][j-1], b[M-1][j+1], b[M-2][j+1], b[M-2][j], b[M-1][j-1]}
-	}
-	if j==0 {
-		return []bool{b[i+1][0], b[i+1][1], b[i][1], b[i-1][1], b[i-1][0]}
-	}
-	if j==N-1 {
-		return []bool{b[i-1][N-1], b[i-1][N-2], b[i][N-2], b[i+1][N-2], b[i+1][N-1]}
-	}
-	return []bool{b[i-1][j-1], b[i-1][j], b[i-1][j+1], b[i][j-1], b[i][j+1], b[i+1][j-1], b[i+1][j], b[i+1][j+1]}	
-}
-func Count(b []bool) int {
-	live := 0
-	for _, c := range b {
-		if c {
-			live++
-		}
-	}
-	return live
-}
-*/
-
-
-
 
 
 

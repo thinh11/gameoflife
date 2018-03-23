@@ -112,22 +112,32 @@ func (window *MainWindow) LoadFile(filename string) error {
 		}
 	}
 	window.GameState = gamestate
-	window.SetCurrentFile(filename)
 
 	return nil
 }
 
 func New(window *MainWindow) func(bool) {
 	return func(bool) {
+		window.PauseButton.SetChecked(false)
+		window.PauseButton.SetText("Start")
 		if (window.OkToContinue()) {
-			//window.Scene.KillCells()
+			for i, _ := range window.GameState {
+				for j, _ := range window.GameState {
+					window.GameState[i][j] = false
+				}
+			}
+			window.SetupScene()
 			window.SetCurrentFile("")
+			window.SetWindowModified(true)
+			window.SetWindowTitle("[*]Untitled")
 		}
 	}
 }
 
 func Open(window *MainWindow) func(bool) {
 	return func(bool) {
+		window.PauseButton.SetChecked(false)
+		window.PauseButton.SetText("Start")
 		if window.OkToContinue() {
 			filename := widgets.QFileDialog_GetOpenFileName(window,
 				"Open Game of Life", "", "", "", 0)
@@ -138,6 +148,10 @@ func Open(window *MainWindow) func(bool) {
 					window.StatusBar().ShowMessage(fmt.Sprintf("%v", err), 0)
 				} else {
 					window.StatusBar().ShowMessage("Loaded "+filename, 0)
+					window.SetupScene()
+					window.SetCurrentFile(filename)
+					window.SetWindowModified(false)
+					window.SetWindowTitle("[*]" + filename + " - Game of Life")
 				}
 			}
 		}
@@ -154,6 +168,7 @@ func Save(window *MainWindow) func(bool) {
 			if err != nil {
 				window.StatusBar().ShowMessage(fmt.Sprintf("%v", err), 0)
 			}
+			window.SetWindowModified(false)
 		}
 	}
 }
@@ -168,6 +183,11 @@ func SaveAs(window *MainWindow) func(bool) {
 			err := window.WriteFile(filename)
 			if err != nil {
 				window.StatusBar().ShowMessage(fmt.Sprintf("%v", err), 0)
+			} else {
+				window.CurrentFile = filename
+				window.SetWindowModified(false)
+				window.SetWindowTitle("[*]" + filename + " - Game of Life")
+				
 			}
 		}
 	}

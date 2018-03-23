@@ -7,3 +7,8 @@ import (
 type View struct {
 	*widgets.QGraphicsView
 }
+
+func NewView() *View {
+	return  &View{widgets.NewQGraphicsView(nil)}
+}
+
