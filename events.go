@@ -3,7 +3,7 @@ package main
 import (
 	//"github.com/therecipe/qt/widgets"
 	//"github.com/therecipe/qt/gui"
-	//"github.com/therecipe/qt/core"
+	"github.com/therecipe/qt/core"
 	"math/rand"
 )
 
@@ -72,6 +72,7 @@ func Randomize(window *MainWindow) func(bool) {
 				}
 			}
 		}
+		window.Scene.Update(core.NewQRectF())
 		window.SetWindowModified(true)
 	}
 }

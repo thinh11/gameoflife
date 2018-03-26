@@ -1,0 +1,7 @@
+clearcells
+copy
+paste
+cut
+delete
+exit
+newmainwindow
