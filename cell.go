@@ -20,10 +20,10 @@ var (
 
 type Cell struct {
 	*widgets.QGraphicsItem
-	Live *bool
+	Live **int
 }
 
-func NewCell(live *bool) *Cell {
+func NewCell(live **int) *Cell {
 	cell := &Cell{widgets.NewQGraphicsItem(nil), live}
 	cell.ConnectBoundingRect(CellBoundingRect(cell))
 	cell.ConnectShape(CellShape(cell))
@@ -35,13 +35,17 @@ func NewCell(live *bool) *Cell {
 }
 
 func (cell *Cell) Change() {
-	*cell.Live = !(*cell.Live)
+	if **cell.Live != 0 {
+		*cell.Live = &Dead
+	} else {
+		*cell.Live = &Live
+	}
 	cell.Update(core.NewQRectF())
 }
 
 
 func (cell *Cell) Color() *gui.QColor {
-	if *cell.Live {
+	if **cell.Live == 1{
 		return Cell__White
 	}
 	return Cell__Black

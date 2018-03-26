@@ -10,10 +10,15 @@ import (
 
 const (
 	SceneMin int = 10
-	SceneMax int = 500
+	SceneMax int = 502
 )
 
-var ReservedState [][]bool
+var (
+	Live int = 1
+	Dead int = 0
+)
+
+var ReservedState [][]*int
 
 type MainWindow struct {
 	*widgets.QMainWindow
@@ -22,7 +27,9 @@ type MainWindow struct {
 	PauseButton *widgets.QToolButton
 	ZoomSlider *widgets.QSlider
 	RotateSlider *widgets.QSlider
-	GameState [][]bool
+	TimeSpinBox *widgets.QSpinBox
+	Timer *core.QTimer
+	GameState [][]*int
 	CurrentFile string
 	New func(bool)
 	Open func(bool)
@@ -32,7 +39,7 @@ type MainWindow struct {
 }
 
 func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainWindow, error) {
-	if height < SceneMin || height > SceneMax || width < SceneMin || width > SceneMax {
+	if height+2 < SceneMin || height+2 > SceneMax || width+2 < SceneMin || width+2 > SceneMax {
 		return nil, errors.New(fmt.Sprintf(
 			"Dimension %vx%v out of range [%v, %v]", height, width, SceneMin, SceneMax))
 	}
@@ -40,20 +47,30 @@ func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainW
 	CellWidth = cellwidth
 	CellHeight = cellheight
 	
+	ReservedState = make([][]*int, SceneMax, SceneMax)
+	for i, _ := range ReservedState {
+		ReservedState[i] = make([]*int, SceneMax, SceneMax)
+		for j, _ := range ReservedState[i] {
+			ReservedState[i][j] = &Dead
+		}
+	}
+	
 	view := NewView()
 	scene := NewScene()
-	gamestate := make([][]bool, height+2, height+2)
-	ReservedState = make([][]bool, height+2, height+2)
-	for i:=0; i < height+2; i++ {
-		gamestate[i] = make([]bool, width+2, width+2)
-		ReservedState[i] = make([]bool, width+2, width+2)
+	gamestate := make([][]*int, height+2, height+2)
+	for i, _ := range gamestate {
+		gamestate[i] = make([]*int, width+2, width+2)
+		for j, _ := range gamestate[i] {
+			gamestate[i][j] = &Dead
+		}
 	}
 	window := &MainWindow{widgets.NewQMainWindow(nil, core.Qt__Widget), 
-		view, scene, nil, nil, nil, gamestate, "", nil, nil, nil, nil, nil}
+		view, scene, nil, nil, nil, nil, nil, gamestate, "", nil, nil, nil, nil, nil}
 	
 	view.SetScene(scene)
 	view.SetRenderHints(gui.QPainter__Antialiasing)
-	//view.ConnectWheelEvent(WheelEvent(window))
+	
+	
 	
 	window.New = New(window)
 	window.Open = Open(window)
@@ -66,6 +83,11 @@ func NewMainWindow(width int, height int, cellwidth int, cellheight int) (*MainW
 	window.CreateStatusBar()
 	window.CreateWidgets() //also set layout
 	
+	window.Timer = core.NewQTimer(nil)
+	window.Timer.ConnectTimeout(WindowAdvance(window))
+	window.Timer.SetInterval(300)
+	
+	
 	window.SetWindowTitle("[*]Untitled - Game of Life")
 	window.SetWindowModified(true)
 	
@@ -77,23 +99,35 @@ func (window *MainWindow) CreateWidgets() {
 	pausebutton := widgets.NewQToolButton(nil)
 	pausebutton.SetText("Start")
 	pausebutton.SetCheckable(true)
-	pausebutton.ConnectClicked(PauseToggle(window))
+	pausebutton.ConnectClicked(TimerToggle(window))
 	zoomslider := widgets.NewQSlider2(core.Qt__Vertical, nil)
-	zoomslider.SetMinimum(50)
-	zoomslider.SetMaximum(200)
+	zoomslider.SetRange(50, 200)
 	zoomslider.SetValue(100)
-	zoomslider.ConnectValueChanged(Zoom(window))
+	zoomslider.ConnectValueChanged(Transform(window))
 	rotateslider := widgets.NewQSlider2(core.Qt__Horizontal, nil)
-	rotateslider.SetMinimum(-180)
-	rotateslider.SetMaximum(180)
+	rotateslider.SetRange(-180, 180)
 	rotateslider.SetValue(0)
-	rotateslider.ConnectValueChanged(Rotate(window))
+	rotateslider.ConnectValueChanged(Transform(window))
+	timespinbox := widgets.NewQSpinBox(nil)
+	timespinbox.SetRange(100, 1000)
+	timespinbox.SetValue(300)
+	timespinbox.ConnectValueChanged(SetTimeInterval(window))
 	window.PauseButton = pausebutton
 	window.ZoomSlider = zoomslider
 	window.RotateSlider = rotateslider
+	window.TimeSpinBox = timespinbox
 	
+	randombutton := widgets.NewQToolButton(nil)
+	randombutton.SetText("Randomize")
+	randombutton.ConnectClicked(Randomize(window))
+	
+	toplayout := widgets.NewQHBoxLayout()
+	toplayout.AddWidget(pausebutton, 0, 0)
+	toplayout.AddWidget(randombutton, 0, 0)
+	toplayout.AddStretch(0)
+	toplayout.AddWidget(timespinbox, 0, 0)
 	gridlayout := widgets.NewQGridLayout2()
-	gridlayout.AddWidget(pausebutton, 0, 0, 0)
+	gridlayout.AddLayout(toplayout, 0, 0, 0)
 	gridlayout.AddWidget(window.View, 1, 0, 0)
 	gridlayout.AddWidget(zoomslider, 1, 1, 0)
 	gridlayout.AddWidget(rotateslider, 3, 0, 0)
